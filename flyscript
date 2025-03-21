@@ -14,15 +14,15 @@ local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "FlyMenuGui"
 screenGui.Parent = player.PlayerGui
 
--- Create ControlFrame
+-- Create ControlFrame (Fly Controls)
 local controlFrame = Instance.new("Frame")
 controlFrame.Name = "ControlFrame"
 controlFrame.Size = UDim2.new(0, 250, 0, 300)
 controlFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
 controlFrame.BackgroundColor3 = Color3.fromRGB(33, 33, 33)  -- Dark theme
 controlFrame.BorderSizePixel = 2
-controlFrame.BorderColor3 = Color3.fromRGB(50, 50, 50)  -- Subtle border color
-controlFrame.Visible = false
+controlFrame.BorderColor3 = Color3.fromRGB(50, 50, 50)
+controlFrame.Visible = false  -- Set it to false initially
 controlFrame.Parent = screenGui
 
 -- Add UICorner to the frame for rounded corners
@@ -186,10 +186,20 @@ controlFrame.InputEnded:Connect(function(input)
     end
 end)
 
+-- Animation using TweenService when opening the frame
+local TweenService = game:GetService("TweenService")
+local openTween = TweenService:Create(controlFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Position = UDim2.new(0.5, -125, 0.5, -150), Transparency = 0})
+local closeTween = TweenService:Create(controlFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {Transparency = 1})
+
 -- Toggle the menu with "M" key
 game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.M then
         controlFrame.Visible = not controlFrame.Visible
+        if controlFrame.Visible then
+            openTween:Play()
+        else
+            closeTween:Play()
+        end
     end
 end)
