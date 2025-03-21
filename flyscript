@@ -1,0 +1,216 @@
+-- Set up the player and necessary variables
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local flying = false
+local speed = 50 -- Initial flight speed
+local bodyVelocity = nil
+local bodyGyro = nil
+local quitScript = false
+
+-- Create the ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyMenuGui"
+screenGui.Parent = player.PlayerGui
+
+-- Create the ControlFrame (menu frame)
+local controlFrame = Instance.new("Frame")
+controlFrame.Name = "ControlFrame"
+controlFrame.Size = UDim2.new(0, 200, 0, 200) -- Frame size
+controlFrame.Position = UDim2.new(0.5, -100, 0.5, -100) -- Center the frame
+controlFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- Dark gray background
+controlFrame.Visible = false -- Initially hidden
+controlFrame.Parent = screenGui
+
+-- Make the frame draggable
+local dragToggle = Instance.new("BoolValue")
+local dragSpeed = 0.2
+local dragStart, startPos
+controlFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle.Value = true
+        dragStart = input.Position
+        startPos = controlFrame.Position
+    end
+end)
+
+controlFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement and dragToggle.Value then
+        local delta = input.Position - dragStart
+        controlFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+controlFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragToggle.Value = false
+    end
+end)
+
+-- Add rounded corners to the frame
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = controlFrame
+
+-- Create the FlyButton (to toggle flying)
+local flyButton = Instance.new("TextButton")
+flyButton.Name = "FlyButton"
+flyButton.Size = UDim2.new(0, 180, 0, 40)
+flyButton.Position = UDim2.new(0.5, -90, 0, 20)
+flyButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+flyButton.Text = "Start Flying"
+flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyButton.Parent = controlFrame
+
+-- Create the PlusButton (to increase speed)
+local plusButton = Instance.new("TextButton")
+plusButton.Name = "PlusButton"
+plusButton.Size = UDim2.new(0, 60, 0, 40)
+plusButton.Position = UDim2.new(0.5, -70, 0, 100)
+plusButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+plusButton.Text = "+"
+plusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+plusButton.Parent = controlFrame
+
+-- Create the MinusButton (to decrease speed)
+local minusButton = Instance.new("TextButton")
+minusButton.Name = "MinusButton"
+minusButton.Size = UDim2.new(0, 60, 0, 40)
+minusButton.Position = UDim2.new(0.5, 10, 0, 100)
+minusButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+minusButton.Text = "-"
+minusButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minusButton.Parent = controlFrame
+
+-- Create the SpeedLabel to display the current speed
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Name = "SpeedLabel"
+speedLabel.Size = UDim2.new(0, 180, 0, 30)
+speedLabel.Position = UDim2.new(0.5, -90, 0, 60)
+speedLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+speedLabel.Text = "Speed: " .. speed
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.TextScaled = true
+speedLabel.Parent = controlFrame
+
+-- Create the Settings Button
+local settingsButton = Instance.new("TextButton")
+settingsButton.Name = "SettingsButton"
+settingsButton.Size = UDim2.new(0, 180, 0, 40)
+settingsButton.Position = UDim2.new(0.5, -90, 0, 150)
+settingsButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+settingsButton.Text = "Settings"
+settingsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+settingsButton.Parent = controlFrame
+
+-- Create Settings Menu
+local settingsMenu = Instance.new("Frame")
+settingsMenu.Name = "SettingsMenu"
+settingsMenu.Size = UDim2.new(0, 200, 0, 150)
+settingsMenu.Position = UDim2.new(0.5, -100, 0.5, -75)
+settingsMenu.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+settingsMenu.Visible = false
+settingsMenu.Parent = screenGui
+
+local quitButton = Instance.new("TextButton")
+quitButton.Size = UDim2.new(0, 180, 0, 40)
+quitButton.Position = UDim2.new(0.5, -90, 0, 20)
+quitButton.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+quitButton.Text = "Quit Script"
+quitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+quitButton.Parent = settingsMenu
+
+-- Create Quit Functionality
+quitButton.MouseButton1Click:Connect(function()
+    quitScript = true
+    controlFrame:Destroy() -- Remove the control frame
+    settingsMenu:Destroy() -- Remove the settings menu
+    if bodyVelocity then bodyVelocity:Destroy() end -- Remove flight mechanics
+    if bodyGyro then bodyGyro:Destroy() end
+end)
+
+-- Toggle Settings Menu
+settingsButton.MouseButton1Click:Connect(function()
+    settingsMenu.Visible = not settingsMenu.Visible
+end)
+
+-- Function to start flying
+local function startFlying()
+    if flying then return end
+    flying = true
+    
+    -- Create BodyVelocity and BodyGyro for flight
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = character:WaitForChild("HumanoidRootPart")
+
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+    bodyGyro.CFrame = character.HumanoidRootPart.CFrame
+    bodyGyro.Parent = character:WaitForChild("HumanoidRootPart")
+    
+    -- Fly logic with smooth control
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if flying then
+            local direction = (mouse.Hit.p - character.HumanoidRootPart.Position).unit
+            bodyVelocity.Velocity = direction * speed
+            bodyGyro.CFrame = CFrame.new(character.HumanoidRootPart.Position, mouse.Hit.p)
+        end
+    end)
+end
+
+-- Function to stop flying
+local function stopFlying()
+    if not flying then return end
+    flying = false
+    
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
+end
+
+-- Toggle flight when FlyButton is clicked
+flyButton.MouseButton1Click:Connect(function()
+    if flying then
+        stopFlying()
+        flyButton.Text = "Start Flying"
+    else
+        startFlying()
+        flyButton.Text = "Stop Flying"
+    end
+end)
+
+-- Increase speed when PlusButton is clicked
+plusButton.MouseButton1Click:Connect(function()
+    speed = speed + 10
+    speedLabel.Text = "Speed: " .. speed
+    print("Speed increased to: " .. speed)
+end)
+
+-- Decrease speed when MinusButton is clicked
+minusButton.MouseButton1Click:Connect(function()
+    if speed > 10 then
+        speed = speed - 10
+        speedLabel.Text = "Speed: " .. speed
+        print("Speed decreased to: " .. speed)
+    end
+end)
+
+-- Toggle ControlFrame visibility when "M" key is pressed
+game:GetService("UserInputService").InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    
+    if input.KeyCode == Enum.KeyCode.M then
+        -- Toggle the visibility of the fly menu
+        controlFrame.Visible = not controlFrame.Visible
+    end
+end)
+
+-- If the player has quit the script, disable everything
+game:GetService("RunService").Heartbeat:Connect(function()
+    if quitScript then
+        controlFrame.Visible = false
+        settingsMenu.Visible = false
+    end
+end)
