@@ -1,0 +1,97 @@
+-- Player setup
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local flying = false
+local speed = 50
+local bodyVelocity = nil
+local bodyGyro = nil
+local flightHeight = 10  -- Default flight height
+
+-- Create GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlyMenuGui"
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Create ControlFrame (Fly Controls)
+local controlFrame = Instance.new("Frame")
+controlFrame.Name = "ControlFrame"
+controlFrame.Size = UDim2.new(0, 250, 0, 300)
+controlFrame.Position = UDim2.new(0.5, -125, 0.5, -150)
+controlFrame.BackgroundColor3 = Color3.fromRGB(33, 33, 33)
+controlFrame.BorderSizePixel = 2
+controlFrame.BorderColor3 = Color3.fromRGB(50, 50, 50)
+controlFrame.Visible = false  -- Initially hidden
+controlFrame.Parent = screenGui
+
+-- UI Corner
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = controlFrame
+
+-- Open/Close Button for Mobile
+local mobileToggleButton = Instance.new("TextButton")
+mobileToggleButton.Name = "MobileToggleButton"
+mobileToggleButton.Size = UDim2.new(0, 100, 0, 50)
+mobileToggleButton.Position = UDim2.new(0.85, 0, 0.85, 0)
+mobileToggleButton.BackgroundColor3 = Color3.fromRGB(68, 68, 68)
+mobileToggleButton.Text = "Menu"
+mobileToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+mobileToggleButton.TextSize = 18
+mobileToggleButton.Font = Enum.Font.GothamBold
+mobileToggleButton.Parent = screenGui
+
+mobileToggleButton.MouseButton1Click:Connect(function()
+    controlFrame.Visible = not controlFrame.Visible
+end)
+
+-- Fly button
+local flyButton = Instance.new("TextButton")
+flyButton.Name = "FlyButton"
+flyButton.Size = UDim2.new(0, 200, 0, 50)
+flyButton.Position = UDim2.new(0.5, -100, 0, 20)
+flyButton.BackgroundColor3 = Color3.fromRGB(68, 68, 68)
+flyButton.Text = "Start Flying"
+flyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+flyButton.TextSize = 18
+flyButton.Font = Enum.Font.GothamBold
+flyButton.Parent = controlFrame
+
+-- Fly logic
+local function startFlying()
+    if flying then return end
+    flying = true
+    bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.MaxForce = Vector3.new(400000, 400000, 400000)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = character:WaitForChild("HumanoidRootPart")
+
+    bodyGyro = Instance.new("BodyGyro")
+    bodyGyro.MaxTorque = Vector3.new(400000, 400000, 400000)
+    bodyGyro.CFrame = character.HumanoidRootPart.CFrame
+    bodyGyro.Parent = character:WaitForChild("HumanoidRootPart")
+    
+    game:GetService("RunService").RenderStepped:Connect(function()
+        if flying then
+            bodyVelocity.Velocity = Vector3.new(0, speed, 0)
+        end
+    end)
+end
+
+local function stopFlying()
+    if not flying then return end
+    flying = false
+    if bodyVelocity then bodyVelocity:Destroy() end
+    if bodyGyro then bodyGyro:Destroy() end
+end
+
+-- Button click events
+flyButton.MouseButton1Click:Connect(function()
+    if flying then
+        stopFlying()
+        flyButton.Text = "Start Flying"
+    else
+        startFlying()
+        flyButton.Text = "Stop Flying"
+    end
+end)
